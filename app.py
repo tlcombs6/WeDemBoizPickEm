@@ -69,14 +69,11 @@ def update_standings():
         def send_api_request(endpoint, parameters, referer=None, proxy=None, headers=None, timeout=30):
             session = requests.Session()
             session.proxies.update(proxies)
-            return NBAStatsHTTP._send_request(
-                endpoint=endpoint,
-                parameters=parameters,
-                referer=referer,
+            return session.get(
+                url=f"https://stats.nba.com{endpoint}",
+                params=parameters,
                 headers=headers,
-                proxy=None,  # Ignore the proxy argument here
-                timeout=timeout,
-                session=session
+                timeout=timeout
             )
 
     try:
