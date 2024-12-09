@@ -1,11 +1,17 @@
 from flask import Flask, render_template_string, jsonify
 import json
 import os
-from nba_api.stats.library.http import NBAStatsHTTP
 from nba_api.stats.endpoints import leaguestandings
 import requests
+from nba_api.stats.library.parameters import LeagueID
 
 app = Flask(__name__)
+
+# ScraperAPI proxy configuration
+PROXIES = {
+    "http": "http://scraperapi.com?api_key=9aec103c3c6d5fb572929b5b0e90e7dc",
+    "https": "http://scraperapi.com?api_key=9aec103c3c6d5fb572929b5b0e90e7dc",
+}
 
 @app.route("/")
 def leaderboard():
@@ -57,31 +63,21 @@ def leaderboard():
 
 @app.route("/update-standings")
 def update_standings():
-    # ScraperAPI proxy configuration
-    proxies = {
-        "http": "http://scraperapi.com?api_key=9aec103c3c6d5fb572929b5b0e90e7dc",
-        "https": "http://scraperapi.com?api_key=9aec103c3c6d5fb572929b5b0e90e7dc"
-    }
-
-    # Override the default HTTP request method for nba_api
-    class ProxyNBAStatsHTTP(NBAStatsHTTP):
-        @staticmethod
-        def send_api_request(endpoint, parameters, referer=None, proxy=None, headers=None, timeout=30):
-            session = requests.Session()
-            session.proxies.update(proxies)
-            return session.get(
-                url=f"https://stats.nba.com{endpoint}",
-                params=parameters,
-                headers=headers,
-                timeout=timeout
-            )
-
     try:
-        # Use the modified HTTP handler with proxy
-        NBAStatsHTTP.send_api_request = ProxyNBAStatsHTTP.send_api_request
+        # Use the proxy directly with requests
+        session = requests.Session()
+        session.proxies.update(PROXIES)
 
-        # Fetch standings data
-        standings = leaguestandings.LeagueStandings(season='2024-25', season_type='Regular Season')
+        # Modify the headers to include a user-agent
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        session.headers.update(headers)
+
+        # Fetch standings data via the proxy
+        standings = leaguestandings.LeagueStandings(
+            season='2024-25', season_type='Regular Season'
+        )
         data = standings.get_data_frames()[0].to_dict(orient='records')
 
         # Save the data to a local JSON file
