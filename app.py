@@ -1,15 +1,22 @@
 from flask import Flask, render_template_string, jsonify
 import json
-from nba_api.stats.endpoints import leaguestandings
 import os
 
 app = Flask(__name__)
 
 @app.route("/")
 def leaderboard():
+    # Ensure standings.json exists
+    if not os.path.exists("standings.json"):
+        with open("standings.json", "w") as f:
+            json.dump([], f)  # Create an empty file
+
     # Load cached standings from the JSON file
     with open("standings.json", "r") as f:
         standings_data = json.load(f)
+
+    if not standings_data:
+        return "<h1>No standings data available. Please try again later.</h1>"
 
     # Define players and their chosen teams
     players = {
@@ -23,8 +30,8 @@ def leaderboard():
     # Process the standings data
     results = []
     for player, team_ids in players.items():
-        player_teams = [team for team in standings_data if team["TeamID"] in team_ids]
-        total_wins = sum(team["WINS"] for team in player_teams)
+        player_teams = [team for team in standings_data if team.get("TeamID") in team_ids]
+        total_wins = sum(team.get("WINS", 0) for team in player_teams)
         results.append({"Player": player, "Total Wins": total_wins, "Teams": player_teams})
     results = sorted(results, key=lambda x: x["Total Wins"], reverse=True)
 
@@ -36,7 +43,7 @@ def leaderboard():
         <ul>
             {% for team in result['Teams'] %}
                 <li>
-                    {{ team['TeamName'] }} - {{ team['WINS'] }} wins ({{ "%.2f" | format(team['WIN_PERCENTAGE'] * 100) }}% win rate)
+                    {{ team['TeamName'] }} - {{ team['WINS'] }} wins ({{ "%.2f" | format(team['WIN_PERCENTAGE'] * 100) if team.get('WIN_PERCENTAGE') else 'N/A' }}% win rate)
                 </li>
             {% endfor %}
         </ul>
@@ -47,6 +54,7 @@ def leaderboard():
 
 @app.route("/update-standings")
 def update_standings():
+    from nba_api.stats.endpoints import leaguestandings
     try:
         # Fetch standings from the NBA API
         standings = leaguestandings.LeagueStandings(season='2024-25', season_type='Regular Season')
