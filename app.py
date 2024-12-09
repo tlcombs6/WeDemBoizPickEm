@@ -54,4 +54,37 @@ def leaderboard():
     """
     return render_template_string(html, results=results)
 
-@app.route("/update
+@app.route("/update-standings")
+def update_standings():
+    # ScraperAPI proxy configuration
+    proxies = {
+        "http": "http://scraperapi.com?api_key=9aec103c3c6d5fb572929b5b0e90e7dc",
+        "https": "http://scraperapi.com?api_key=9aec103c3c6d5fb572929b5b0e90e7dc"
+    }
+
+    try:
+        # Configure a session to use the ScraperAPI proxy
+        session = requests.Session()
+        session.proxies.update(proxies)
+
+        # Use the NBA API with the ScraperAPI proxy
+        standings = leaguestandings.LeagueStandings(
+            season='2024-25',
+            season_type='Regular Season',
+            headers={"User-Agent": "Mozilla/5.0"},
+            session=session
+        )
+        data = standings.get_data_frames()[0].to_dict(orient='records')
+
+        # Save the data to a local JSON file
+        with open("standings.json", "w") as f:
+            json.dump(data, f)
+
+        return jsonify({"status": "success", "message": "Standings updated successfully!"}), 200
+    except Exception as e:
+        print("Error in /update-standings:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
