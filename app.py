@@ -1,6 +1,7 @@
 from flask import Flask, render_template_string
 import pandas as pd
 from nba_api.stats.endpoints import leaguestandings
+import os  # Import for Heroku's PORT binding
 
 app = Flask(__name__)
 
@@ -47,6 +48,6 @@ def leaderboard():
     return render_template_string(html, results=results)
 
 if __name__ == "__main__":
-    app.run(debug=True)
-
-
+    # Bind to the port Heroku provides
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
