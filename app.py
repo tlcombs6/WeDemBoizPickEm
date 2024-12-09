@@ -1,12 +1,16 @@
-from flask import Flask, render_template_string
-import pandas as pd
+from flask import Flask, render_template_string, jsonify
+import json
 from nba_api.stats.endpoints import leaguestandings
-import os  # Import for Heroku's PORT binding
+import os
 
 app = Flask(__name__)
 
 @app.route("/")
 def leaderboard():
+    # Load cached standings from the JSON file
+    with open("standings.json", "r") as f:
+        standings_data = json.load(f)
+
     # Define players and their chosen teams
     players = {
         "Frankie": [1610612738, 1610612756, 1610612753, 1610612746, 1610612759, 1610612764],
@@ -16,19 +20,13 @@ def leaderboard():
         "Casey": [1610612755, 1610612750, 1610612748, 1610612740, 1610612741, 1610612766]
     }
 
-    # Fetch standings from the NBA API
-    standings = leaguestandings.LeagueStandings(season='2024-25', season_type='Regular Season')
-    standings_df = standings.get_data_frames()[0]
-    teams_stats = standings_df[['TeamID', 'TeamName', 'WINS', 'LOSSES']].copy()
-    teams_stats['WIN_PERCENTAGE'] = teams_stats['WINS'] / (teams_stats['WINS'] + teams_stats['LOSSES'])
-
-    # Calculate player results
+    # Process the standings data
     results = []
     for player, team_ids in players.items():
-        player_teams = teams_stats[teams_stats['TeamID'].isin(team_ids)]
-        total_wins = player_teams['WINS'].sum()
-        results.append({"Player": player, "Total Wins": total_wins, "Teams": player_teams.to_dict('records')})
-    results = sorted(results, key=lambda x: x['Total Wins'], reverse=True)
+        player_teams = [team for team in standings_data if team["TeamID"] in team_ids]
+        total_wins = sum(team["WINS"] for team in player_teams)
+        results.append({"Player": player, "Total Wins": total_wins, "Teams": player_teams})
+    results = sorted(results, key=lambda x: x["Total Wins"], reverse=True)
 
     # Render leaderboard
     html = """
@@ -47,7 +45,21 @@ def leaderboard():
     """
     return render_template_string(html, results=results)
 
+@app.route("/update-standings")
+def update_standings():
+    try:
+        # Fetch standings from the NBA API
+        standings = leaguestandings.LeagueStandings(season='2024-25', season_type='Regular Season')
+        data = standings.get_data_frames()[0].to_dict(orient='records')
+
+        # Save the data to a local JSON file
+        with open("standings.json", "w") as f:
+            json.dump(data, f)
+
+        return jsonify({"status": "success", "message": "Standings updated successfully!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 if __name__ == "__main__":
-    # Bind to the port Heroku provides
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
