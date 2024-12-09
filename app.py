@@ -1,6 +1,7 @@
 from flask import Flask, render_template_string, jsonify
 import json
 import os
+from nba_api.stats.library.http import NBAStatsHTTP
 from nba_api.stats.endpoints import leaguestandings
 import requests
 
@@ -62,18 +63,28 @@ def update_standings():
         "https": "http://scraperapi.com?api_key=9aec103c3c6d5fb572929b5b0e90e7dc"
     }
 
-    try:
-        # Configure a session to use the ScraperAPI proxy
-        session = requests.Session()
-        session.proxies.update(proxies)
+    # Override the default HTTP request method for nba_api
+    class ProxyNBAStatsHTTP(NBAStatsHTTP):
+        @staticmethod
+        def send_api_request(endpoint, parameters, referer=None, proxy=None, headers=None, timeout=30):
+            session = requests.Session()
+            session.proxies.update(proxies)
+            return NBAStatsHTTP._send_request(
+                endpoint=endpoint,
+                parameters=parameters,
+                referer=referer,
+                headers=headers,
+                proxy=None,  # Ignore the proxy argument here
+                timeout=timeout,
+                session=session
+            )
 
-        # Use the NBA API with the ScraperAPI proxy
-        standings = leaguestandings.LeagueStandings(
-            season='2024-25',
-            season_type='Regular Season',
-            headers={"User-Agent": "Mozilla/5.0"},
-            session=session
-        )
+    try:
+        # Use the modified HTTP handler with proxy
+        NBAStatsHTTP.send_api_request = ProxyNBAStatsHTTP.send_api_request
+
+        # Fetch standings data
+        standings = leaguestandings.LeagueStandings(season='2024-25', season_type='Regular Season')
         data = standings.get_data_frames()[0].to_dict(orient='records')
 
         # Save the data to a local JSON file
