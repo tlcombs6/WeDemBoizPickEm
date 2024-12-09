@@ -1,6 +1,8 @@
 from flask import Flask, render_template_string, jsonify
 import json
 import os
+from nba_api.stats.endpoints import leaguestandings
+import requests
 
 app = Flask(__name__)
 
@@ -52,22 +54,4 @@ def leaderboard():
     """
     return render_template_string(html, results=results)
 
-@app.route("/update-standings")
-def update_standings():
-    from nba_api.stats.endpoints import leaguestandings
-    try:
-        # Fetch standings from the NBA API
-        standings = leaguestandings.LeagueStandings(season='2024-25', season_type='Regular Season')
-        data = standings.get_data_frames()[0].to_dict(orient='records')
-
-        # Save the data to a local JSON file
-        with open("standings.json", "w") as f:
-            json.dump(data, f)
-
-        return jsonify({"status": "success", "message": "Standings updated successfully!"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+@app.route("/update
