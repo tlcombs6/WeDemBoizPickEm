@@ -87,7 +87,7 @@ def leaderboard():
     </head>
     <body>
         <header>
-            <img src="static/StephDray.webp" alt="Header Image">
+            <img src="static/JaWemby.gif" alt="Header Image">
         </header>
         <div class="content">
             <h1>🏀 PICK 'EM LEADERBOARD 🏀</h1>
@@ -113,7 +113,7 @@ def leaderboard():
                 </ul>
             {% endfor %}
         </div>
-    </body>
+    </body>a
     </html>
     """
 
